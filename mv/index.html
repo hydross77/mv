@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>♡</title>
+  <style>
+    :root {
+      --bg:#0d0b08; --card:#16120d; --copper:#e8853a;
+      --copper2:#f5a623; --gold:#f6c177; --text:#f3ece2; --muted:#9a8f80;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at 50% 0%, #1a140d 0%, var(--bg) 60%);
+      font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text);
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; padding: 24px; overflow-x: hidden;
+    }
+    .card {
+      width: 100%; max-width: 420px; background: var(--card);
+      border: 1px solid rgba(232,133,58,0.18); border-radius: 18px;
+      padding: 34px 28px 30px; position: relative;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    }
+    .kicker { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); font-weight: 600; text-align: center; margin-bottom: 24px; }
+    .progress { height: 3px; width: 100%; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; margin-bottom: 26px; }
+    .progress > span { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--copper), var(--copper2), var(--gold)); border-radius: 4px; transition: width 0.5s ease; }
+    .question { font-size: 20px; font-weight: 600; line-height: 1.35; margin-bottom: 20px; min-height: 52px; }
+    .options { display: flex; flex-direction: column; gap: 11px; }
+    .opt {
+      text-align: left; width: 100%; padding: 14px 18px; font-size: 16px; font-family: inherit; color: var(--text);
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(246,193,119,0.18); border-radius: 12px; cursor: pointer;
+      transition: transform 0.18s, border-color 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent; user-select: none;
+    }
+    .opt:hover, .opt:active { border-color: var(--copper); background: rgba(232,133,58,0.08); transform: translateX(4px); }
+
+    .wizz { min-height: 20px; margin-top: 14px; text-align: center; font-size: 15px; font-weight: 600; color: #ff6b6b; opacity: 0; transition: opacity .25s; }
+    .wizz.show { opacity: 1; }
+
+    .result { text-align: center; display: none; padding: 30px 0; } .result.show { display: block; }
+    .finalline { font-size: 40px; font-weight: 800; line-height: 1.2; background: linear-gradient(90deg, var(--copper), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .subline { margin-top: 18px; font-size: 16px; line-height: 1.55; color: var(--muted); font-style: italic; font-weight: 400; max-width: 320px; margin-left: auto; margin-right: auto; }
+
+    /* effet wizz (secousse de la carte) */
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      15% { transform: translateX(-10px) rotate(-1deg); }
+      30% { transform: translateX(9px) rotate(1deg); }
+      45% { transform: translateX(-8px) rotate(-1deg); }
+      60% { transform: translateX(7px) rotate(1deg); }
+      75% { transform: translateX(-5px); }
+      90% { transform: translateX(3px); }
+    }
+    .card.shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97); }
+
+    @media (max-width: 480px) {
+      body { padding: 14px; align-items: flex-start; padding-top: 30px; }
+      .card { padding: 26px 20px 24px; }
+      .question { font-size: 18px; min-height: 46px; }
+      .opt { font-size: 15px; padding: 13px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="kicker">Test d'alchimie</div>
+
+    <div id="quiz">
+      <div class="progress"><span id="bar"></span></div>
+      <div class="question" id="question"></div>
+      <div class="options" id="options"></div>
+      <div class="wizz" id="wizz"></div>
+    </div>
+
+    <div class="result" id="result">
+      <div class="finalline">mh… <span id="scoreNum">0</span> % 😉</div>
+      <div class="subline">Les opposés s'attirent, paraît-il… mais les âmes qui se ressemblent, encore plus ?</div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       1) RÉGLAGES À MODIFIER PAR TIFFANY
+       ============================================================
+       - Pour chaque réponse, "w" = le poids (les points).
+         w plus grand  = plus de compatibilité.
+         Mets l'échelle que tu veux ; ici : 3 = beaucoup, 2 = moyen, 1 = peu.
+       - Le score final = (somme des points obtenus / max possible) x 100.
+    */
+    const questions = [
+      // Q1 — AUTHENTIQUE vs SUPERFICIEL (ancré dans le vrai / dans l'image)
+      {
+        q: "Si tu étais un endroit, tu serais…",
+        options: [
+          { text: "Une cabane perdue dans la nature, là où on s'entend penser 🌿", w: 3 }, // authentique
+          { text: "Un vieux café tranquille où le temps s'arrête ☕", w: 2 },              // entre-deux
+          { text: "Un rooftop select, vue, musique, et tous les regards 🍸", w: 1 },        // image / paraître
+        ]
+      },
+      // Q2 — AUTHENTIQUE vs SUPERFICIEL (vivre l'instant / tout montrer)
+      {
+        q: "Un super moment, en vrai tu…",
+        options: [
+          { text: "Le vis à fond, le téléphone reste dans la poche 🤍", w: 3 },        // authentique
+          { text: "Voles une photo discrète, juste pour t'en souvenir 📸", w: 3 },
+          { text: "Le mets en story direct, un moment ça se partage 📲", w: 1 },        // paraître
+        ]
+      },
+      // Q3 — MET LA PRESSION vs PREND SON TEMPS
+      {
+        q: "Quand une histoire te plaît vraiment, ton rythme c'est…",
+        options: [
+          { text: "Je laisse les choses se poser, savourer chaque étape 🌙", w: 3 },     // prend son temps
+          { text: "Je suis l'alchimie : vite si ça matche, lentement si ça doute ⚖️", w: 2 },
+          { text: "Je fonce, quand c'est oui c'est oui, pas le temps de tergiverser ⚡", w: 1 }, // met la pression
+        ]
+      },
+      // Q4 — HEUREUX SEUL vs A BESOIN DES GENS (les gens = bonus)
+      {
+        q: "Ton bonheur, au fond, il vient surtout…",
+        options: [
+          { text: "De l'intérieur — je suis bien seul, les gens sont un bonus 🧘", w: 3 },  // bien seul
+          { text: "D'un équilibre : mes moments à moi, et les bons avec les autres ☯️", w: 2 },
+          { text: "Des autres — entouré, je me sens vraiment vivant 👥", w: 1 },             // dépend des gens
+        ]
+      },
+      // Q5 — (dernière notée) INTIMITÉ : ouvert/aventurier ou classique  (subtil)
+      {
+        q: "Niveau intimité, ta philosophie c'est plutôt…",
+        options: [
+          { text: "Zéro tabou — j'aime explorer, oser, et surprendre 😏", w: 3 },         // ouvert / aventurier
+          { text: "Ouvert quand la confiance est là, je me laisse guider par le feeling 🔥", w: 2 },
+          { text: "Les valeurs sûres, je préfère ce que je connais 🌹", w: 1 },           // classique
+        ]
+      },
+    ];
+
+    /* 2) GOOGLE SHEET : colle ici l'URL de ton Web App (étapes données par Claude).
+          Laisse "" pour désactiver l'envoi (la page marche quand même). */
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxN45N8fEfB8NeKu5K40kvZS0hkKonZ2hvXUt3hWXZV0w7Cj0SoMM66wApwSW4VZ6hI/exec";
+
+    /* ============================================================
+       MOTEUR (pas besoin de toucher en dessous)
+       ============================================================ */
+    const elQ = document.getElementById('question');
+    const elOpts = document.getElementById('options');
+    const elBar = document.getElementById('bar');
+    const elQuiz = document.getElementById('quiz');
+    const elRes = document.getElementById('result');
+    let current = 0, totalPoints = 0;
+    const answers = []; // { q, a, w }
+
+    const maxPoints = questions.reduce((s, q) => s + Math.max(...q.options.map(o => o.w)), 0);
+
+    const elWizz = document.getElementById('wizz');
+    const card = document.querySelector('.card');
+
+    // mélange un tableau (Fisher-Yates) — pour que l'ordre des réponses change
+    function shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function render() {
+      elWizz.classList.remove('show');
+      elBar.style.width = (current / questions.length) * 100 + '%';
+      const data = questions[current];
+      elQ.textContent = data.q;
+      elOpts.innerHTML = '';
+      shuffle(data.options).forEach(opt => {   // réponses mélangées
+        const b = document.createElement('button');
+        b.className = 'opt';
+        b.textContent = opt.text;
+        b.addEventListener('click', () => {
+          totalPoints += opt.w;
+          answers.push({ q: data.q, a: opt.text, w: opt.w });
+          current++;
+          if (current >= questions.length) gateQuestion();
+          else render();
+        });
+        elOpts.appendChild(b);
+      });
+    }
+
+    // Dernière question (piège) avant le pourcentage : Tiffany ?
+    function gateQuestion() {
+      elWizz.classList.remove('show');
+      elBar.style.width = '100%';
+      elQ.textContent = "La plus belle fille de ton entourage, c'est Tiffany ?";
+      elOpts.innerHTML = '';
+      [
+        { text: "Oui 😍", ok: true },
+        { text: "Non", ok: false },
+      ].forEach(opt => {
+        const b = document.createElement('button');
+        b.className = 'opt';
+        b.textContent = opt.text;
+        b.addEventListener('click', () => {
+          if (opt.ok) {
+            answers.push({ q: "La plus belle fille de ton entourage, c'est Tiffany ?", a: "Oui", w: 0 });
+            finish();
+          } else {
+            // wizz : on secoue la carte + message
+            card.classList.remove('shake');
+            void card.offsetWidth; // relance l'animation
+            card.classList.add('shake');
+            elWizz.textContent = "Mauvaise réponse 😤";
+            elWizz.classList.add('show');
+          }
+        });
+        elOpts.appendChild(b);
+      });
+    }
+
+    const elScoreNum = document.getElementById('scoreNum');
+
+    function finish() {
+      elQuiz.style.display = 'none';
+      document.querySelector('.kicker').style.display = 'none';
+      elRes.classList.add('show');
+
+      const score = Math.round((totalPoints / maxPoints) * 100);
+      sendToSheet(score); // envoi vers Google Sheet (si configuré)
+
+      // petit compteur qui monte jusqu'au score
+      let val = 0;
+      setTimeout(() => {
+        const climb = setInterval(() => {
+          const step = (Math.abs(val - score) < 8 && score > 12) ? 0.5 : 2.2;
+          val = Math.min(score, val + step);
+          elScoreNum.textContent = Math.round(val);
+          if (val >= score) clearInterval(climb);
+        }, 30);
+      }, 400);
+    }
+
+    function sendToSheet(score) {
+      if (!APPS_SCRIPT_URL) return;
+      try {
+        fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ score: score, answers: answers })
+        });
+      } catch (e) { /* on ignore : le quiz doit marcher quoi qu'il arrive */ }
+    }
+
+    render();
+  </script>
+</body>
+</html>
