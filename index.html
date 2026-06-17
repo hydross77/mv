@@ -160,6 +160,9 @@
 
     const maxPoints = questions.reduce((s, q) => s + Math.max(...q.options.map(o => o.w)), 0);
 
+    // Titre : "for Mehdi | N questions" (compteur automatique)
+    document.querySelector('.kicker').textContent = 'for Mehdi | ' + questions.length + ' questions';
+
     const elWizz = document.getElementById('wizz');
     const card = document.querySelector('.card');
 
